@@ -1,0 +1,61 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+data = pd.read_csv("mvp.csv")
+data = data.dropna(subset=['MVP'])
+
+features = ['Win %', 'Cmp', 'Att', 'Cmp%', 'Yds', 'TD', 'Int', 'Passer Rating', 
+            'Sacks', 'Sack Yds', 'Passing Y/A', 'Adjusted Y/A', 
+            'Rushing Att', 'Rushing Yds', 'Rushing Y/A', 'Rushing TD', 'Fumbles']
+X = data[features]
+y = data['MVP']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+log_model = LogisticRegression()
+log_model.fit(X_train, y_train)
+
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+log_pred = log_model.predict(X_test)
+rf_pred = rf_model.predict(X_test)
+
+print("Logistic Regression Performance:")
+print("Accuracy:", accuracy_score(y_test, log_pred))
+print(classification_report(y_test, log_pred))
+
+print("Random Forest Performance:")
+print("Accuracy:", accuracy_score(y_test, rf_pred))
+print(classification_report(y_test, rf_pred))
+
+feature_importances = rf_model.feature_importances_
+sorted_idx = np.argsort(feature_importances)[::-1]
+
+plt.figure(figsize=(10,6))
+plt.barh(np.array(features)[sorted_idx], feature_importances[sorted_idx])
+plt.xlabel("Feature Importance")
+plt.title("Most Important Features for MVP Prediction")
+plt.gca().invert_yaxis()
+plt.show()
+
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [None, 10, 20],
+    'min_samples_split': [2, 5, 10]
+}
+
+grid_search = GridSearchCV(RandomForestClassifier(), param_grid, cv=5)
+grid_search.fit(X_train, y_train)
+
+print("Best parameters found:", grid_search.best_params_)
